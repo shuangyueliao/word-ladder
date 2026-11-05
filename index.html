@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="description" content="Word Ladder — climb from one word to another, one letter at a time. A free single-file HTML5 word puzzle.">
+<title>Word Ladder — Free Word Puzzle</title>
+<script>
+// 平台 SDK 按域名条件加载（独立运行时完全不加载，游戏行为不变）
+(function () {
+  var host = location.hostname || "";
+  try {
+    if (host.indexOf("crazygames") !== -1) {
+      var s1 = document.createElement("script");
+      s1.src = "https://sdk.crazygames.com/crazygames-sdk-v3.js";
+      s1.onload = function () {
+        if (window.CrazyGames && window.CrazyGames.SDK) {
+          window.CrazyGames.SDK.init().then(function () {
+            try { window.CrazyGames.SDK.game.loadingStart(); } catch (e) {}
+            window.addEventListener("load", function () { try { window.CrazyGames.SDK.game.loadingStop(); } catch (e) {} });
+          }).catch(function () {});
+        }
+      };
+      document.head.appendChild(s1);
+      window.__portal = "crazygames";
+    } else if (host.indexOf("gamedistribution") !== -1 || host.indexOf("html5.gamedistribution.com") !== -1 || host.indexOf("gd.games") !== -1) {
+      var s2 = document.createElement("script");
+      s2.src = "https://sdk.gamedistribution.com/v2/main.min.js";
+      document.head.appendChild(s2);
+      window.__portal = "gamedistribution";
+    }
+  } catch (e) {}
+})();
+</script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; overflow:hidden; background:#efe6d3; font-family:Georgia, "Times New Roman", serif; color:#2b2418; }
+  #wrap { height:100%; max-width:520px; margin:0 auto; display:flex; flex-direction:column; padding:8px 14px; }
+  .screen { display:none; flex:1; flex-direction:column; min-height:0; }
+  .screen.on { display:flex; }
+  h1 { font-size:30px; letter-spacing:3px; text-align:center; margin:18px 0 2px; }
+  .sub { text-align:center; color:#7a6c52; font-size:13px; font-style:italic; margin-bottom:14px; }
+  .rule { border:none; border-top:2px solid #2b2418; margin:6px 0 14px; }
+  .btn { display:block; width:100%; background:#2b2418; color:#f5eeda; border:none; border-radius:10px;
+         padding:14px; font-family:inherit; font-size:17px; font-weight:bold; letter-spacing:1px;
+         cursor:pointer; margin-bottom:10px; box-shadow:0 3px 0 #14100a; }
+  .btn:active { transform:translateY(2px); box-shadow:0 1px 0 #14100a; }
+  .btn.ghost { background:transparent; color:#2b2418; border:2px solid #2b2418; box-shadow:none; }
+  .btn.small { padding:9px; font-size:14px; margin-bottom:8px; }
+  .btn:disabled { opacity:.4; pointer-events:none; }
+  .statrow { display:flex; justify-content:space-around; margin:10px 0 16px; }
+  .stat { text-align:center; }
+  .stat .lab { font-size:10px; letter-spacing:2px; color:#7a6c52; }
+  .stat .val { font-size:22px; font-weight:bold; }
+  #topbar { display:flex; justify-content:space-between; align-items:center; padding:4px 0 8px; }
+  #topbar .t { font-size:14px; letter-spacing:2px; font-weight:bold; }
+  #topbar button { background:transparent; border:1.5px solid #2b2418; border-radius:8px; color:#2b2418;
+    font-family:inherit; font-size:12px; padding:5px 10px; cursor:pointer; margin-left:6px; }
+  #puzzlehead { display:flex; justify-content:space-between; align-items:baseline; font-size:13px; color:#7a6c52; padding:2px 2px 6px; }
+  #ladder { flex:1; overflow-y:auto; min-height:0; padding:4px 2px; -webkit-overflow-scrolling:touch; }
+  .rung { display:flex; align-items:center; gap:10px; margin-bottom:6px; animation:rise .3s ease-out; }
+  @keyframes rise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+  .card { flex:1; display:flex; justify-content:center; background:#faf5e6; border:1.5px solid #2b2418;
+    border-radius:8px; padding:9px 0; box-shadow:2px 2px 0 rgba(43,36,24,.25); }
+  .card span { width:34px; text-align:center; font-size:26px; font-weight:bold; }
+  .card span.pos { cursor:pointer; }
+  .card span.pos:hover { background:#e8dfc4; border-radius:4px; }
+  .card.done { background:#dfe8d0; border-color:#4a5d33; }
+  .card.start { background:#e9e2cf; }
+  .card.cur { border-width:2.5px; }
+  .card.target { background:#f3e0d3; border-color:#8a4b2d; }
+  .rung .arrow { width:22px; text-align:center; color:#7a6c52; font-size:15px; }
+  .rung .stepno { width:20px; font-size:12px; color:#a09272; text-align:right; }
+  #msg { min-height:20px; text-align:center; font-size:13px; color:#8a4b2d; font-style:italic; padding:2px 0 4px; }
+  #kbd { display:none; flex-wrap:wrap; gap:6px; justify-content:center; background:#faf5e6; border:2px solid #2b2418;
+    border-radius:10px; padding:10px; margin-bottom:8px; box-shadow:2px 2px 0 rgba(43,36,24,.25); }
+  #kbd .kt { font-family:inherit; font-size:22px; font-weight:bold; width:46px; height:46px; border:1.5px solid #2b2418;
+    border-radius:8px; background:#efe6d3; color:#2b2418; cursor:pointer; }
+  #kbd .kt:active { background:#2b2418; color:#f5eeda; }
+  #kbd .x { width:100%; font-size:12px; color:#7a6c52; text-align:center; font-style:italic; }
+  #actions { display:flex; gap:8px; padding-bottom:8px; }
+  #actions button { flex:1; background:transparent; border:2px solid #2b2418; border-radius:10px; color:#2b2418;
+    font-family:inherit; font-size:13px; font-weight:bold; padding:10px 0; cursor:pointer; }
+  #actions button:active { background:#2b2418; color:#f5eeda; }
+  #ovl { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(43,36,24,.55); z-index:20; }
+  #ovl.on { display:flex; }
+  #panel { background:#f5eeda; border:2px solid #2b2418; border-radius:14px; padding:26px 30px; width:88%;
+    max-width:360px; text-align:center; box-shadow:4px 4px 0 rgba(43,36,24,.4); }
+  #panel h2 { font-size:24px; margin-bottom:4px; }
+  #panel .big { font-size:34px; font-weight:bold; color:#8a4b2d; margin:8px 0; }
+  #panel p { color:#7a6c52; font-size:13px; margin-bottom:14px; }
+  #hintbox { display:none; background:#f3e0d3; border:1.5px dashed #8a4b2d; border-radius:8px; padding:8px;
+    text-align:center; font-size:13px; margin-bottom:6px; }
+  #footer { text-align:center; color:#a09272; font-size:11px; padding:6px 0 10px; }
+  #typeIn { position:absolute; opacity:0; pointer-events:none; }
+</style>
+</head>
+<body>
+<div id="wrap">
+
+  <!-- ===== Menu ===== -->
+  <div class="screen on" id="scMenu">
+    <h1>WORD LADDER</h1>
+    <div class="sub">change one letter at a time &mdash; reach the last word</div>
+    <hr class="rule">
+    <div class="statrow">
+      <div class="stat"><div class="lab">STREAK</div><div class="val" id="mStreak">0</div></div>
+      <div class="stat"><div class="lab">BEST STREAK</div><div class="val" id="mBest">0</div></div>
+      <div class="stat"><div class="lab">SOLVED</div><div class="val" id="mSolved">0</div></div>
+    </div>
+    <button class="btn" id="bDaily">DAILY CHALLENGE</button>
+    <div class="sub" id="dailyTag" style="margin:-4px 0 10px">3 puzzles today</div>
+    <button class="btn ghost" id="bEndless">ENDLESS MODE</button>
+    <div style="display:flex; gap:8px; margin-top:2px">
+      <button class="btn ghost small" data-diff="3" style="flex:1">EASY &middot; 3 steps</button>
+      <button class="btn ghost small" data-diff="4" style="flex:1">MEDIUM &middot; 4</button>
+      <button class="btn ghost small" data-diff="5" style="flex:1">HARD &middot; 5+</button>
+    </div>
+    <div id="footer">Word Ladder &mdash; a free word puzzle game</div>
+  </div>
+
+  <!-- ===== Game ===== -->
+  <div class="screen" id="scGame">
+    <div id="topbar">
+      <button id="bQuit">&#8592; Menu</button>
+      <div class="t" id="gTitle">PUZZLE 1/3</div>
+      <div>
+        <button id="bMute">Sound: On</button>
+      </div>
+    </div>
+    <div id="puzzlehead">
+      <div id="gMode">Endless</div>
+      <div id="gSteps">Moves: 0</div>
+    </div>
+    <div id="ladder"></div>
+    <div id="hintbox"></div>
+    <div id="msg">Tap a letter of your current word to change it</div>
+    <div id="kbd"></div>
+    <div id="actions">
+      <button id="bUndo">&#8630; Undo</button>
+      <button id="bHint">Hint</button>
+    </div>
+  </div>
+
+  <!-- ===== Result overlay ===== -->
+  <div id="ovl"><div id="panel">
+    <h2 id="pTitle">Ladder Complete!</h2>
+    <div class="big" id="pBig">PERFECT</div>
+    <p id="pText"></p>
+    <button class="btn" id="pNext">Next Puzzle</button>
+    <button class="btn ghost" id="pMenu">Main Menu</button>
+  </div></div>
+  <input id="typeIn" autocomplete="off" autocapitalize="off" spellcheck="false">
+</div>
+<script>
+"use strict";
+/* ================= 词库与图 ================= */
+var WORDS = "acid,aide,aims,airy,akin,amid,anus,arid,aunt,avid,away,back,bail,bait,bake,bald,bale,ball,band,bane,bang,bank,barb,bare,bark,barn,base,bash,bask,bass,bath,bats,bead,beak,beam,bean,bear,beat,beds,beef,been,beer,bees,bell,belt,bend,bent,best,bets,bias,bike,bill,bind,bird,bite,bits,blab,blew,blob,bloc,blot,blow,blue,blur,boar,boat,bode,body,boil,bold,bolt,bomb,bond,bone,book,boom,boot,bore,born,boss,both,bout,bowl,boys,brag,bran,brat,bray,brew,brie,brig,brim,brow,buck,bulb,bulk,bull,bump,bunk,buns,burn,burp,bury,bush,bust,busy,butt,buys,cage,cake,calf,call,calm,came,camp,cane,cans,cape,caps,card,care,carp,cars,cart,case,cash,cask,cast,cats,cave,cede,cell,cent,chap,char,chat,chef,chew,chic,chin,chip,chop,cite,city,clad,clam,clan,clap,claw,clay,clip,clod,clog,clot,club,clue,coal,coat,coax,cobs,cock,code,cods,coil,coin,coke,cold,colt,comb,come,cone,cook,cool,coop,cope,cops,copy,cord,core,cork,corn,cost,cosy,cots,coup,cove,cows,cozy,crab,crag,cram,crew,crib,crop,crow,cube,cubs,cued,cues,cull,cult,curb,curd,cure,curl,curt,cute,cyst,dabs,dame,damp,dams,dare,dark,darn,dart,dash,data,date,daub,dawn,days,dead,deaf,deal,dean,dear,debt,deck,deed,deem,deep,deer,deft,defy,dell,dens,dent,deny,desk,dial,dice,died,dies,diet,digs,dike,dill,dime,dine,ding,dins,dips,dire,dirt,disc,dish,disk,dive,dock,docs,doer,does,dogs,dole,doll,dolt,dome,done,dons,doom,door,dope,dorm,dose,dote,dots,dour,dove,down,doze,drab,drag,dram,draw,dray,drew,drip,drop,drub,drug,drum,dual,duck,duct,dude,duel,dues,duet,dull,duly,dumb,dump,dune,dung,dunk,dusk,dust,duty,dyed,dyer,dyes,earl,earn,ears,ease,east,easy,eats,eons,eras,errs,eyed,eyes,face,fact,fade,fads,fail,fair,fake,fall,fame,fans,fare,farm,fart,fast,fate,fawn,faze,fear,feat,feed,feel,fees,feet,fell,felt,fend,fern,feud,figs,file,fill,film,find,fine,fins,fire,firm,fish,fist,fits,five,flag,flak,flap,flat,flaw,flax,flea,fled,flee,flew,flex,flip,flit,flog,flop,flow,flub,flue,flux,foal,foam,foes,foil,fold,folk,fond,font,food,fool,foot,fore,fork,form,fort,foul,four,fowl,frat,free,fret,frog,from,fuel,full,fume,fund,funk,furl,fury,fuse,fuss,gain,gait,gala,gale,gall,game,gang,gape,gaps,garb,gash,gasp,gate,gave,gawk,gaze,gear,gems,gene,gent,germ,gets,gift,gigs,gild,gill,gilt,gins,girl,gist,give,glad,glee,glen,glow,glue,glum,glut,gnat,gnaw,goad,goal,goat,gobs,gods,goes,gold,golf,gone,gong,good,gore,gory,gosh,gown,grab,gram,gray,grew,grey,grid,grim,grin,grip,grit,grow,grub,gulf,gull,gulp,gums,gush,gust,guts,guys,hack,hail,hair,hale,half,hall,halo,halt,hand,hang,hard,hare,hark,harm,harp,hash,hate,haul,have,hawk,hays,haze,hazy,head,heal,heap,hear,heat,heed,heel,heir,held,helm,help,hemp,hens,herb,herd,here,hero,hers,hewn,hide,hike,hill,hilt,hind,hint,hips,hire,hiss,hits,hive,hoax,hogs,hold,hole,holy,home,hone,hood,hoof,hook,hoop,hoot,hope,hops,horn,hose,host,hour,howl,hubs,hues,huge,hugs,hulk,hull,hump,hung,hunk,hunt,hurl,hurt,hush,husk,ions,item,jabs,jack,jade,jail,jamb,jams,jars,jaws,jeep,jeer,jest,jets,jibe,jigs,jilt,jinx,jive,jobs,jock,jogs,join,joke,jolt,jots,jowl,joys,jugs,jump,junk,jury,just,jute,keel,keen,keep,kegs,kelp,kept,keys,kick,kids,kiln,kilo,kilt,kind,king,kiss,kite,kits,lace,lack,lacy,lads,lady,lags,laid,lain,lair,lake,lamb,lame,lamp,land,lane,laps,lard,lark,lash,lass,last,late,lawn,laws,lays,lazy,lead,leaf,leak,lean,leap,left,legs,lend,lens,lent,less,lest,lets,libs,lice,lick,lids,lied,lief,lies,life,lift,like,lilt,lily,limb,lime,limp,line,link,lint,lion,lips,lisp,list,live,load,loaf,loam,loan,lobe,lobs,lock,lode,loft,logo,logs,loin,lone,long,look,loom,loon,loop,loot,lope,lord,lore,lose,loss,lost,lots,loud,lout,love,luck,lull,lump,lung,lure,lurk,lush,lust,lute,lyre,mace,made,maid,mail,maim,main,make,male,mall,malt,mane,mans,many,maps,mare,mark,mars,mash,mask,mass,mast,mate,math,maze,mead,meal,mean,meat,meek,meet,meld,melt,mend,menu,mere,mesa,mesh,mess,mice,mild,mile,milk,mill,mime,mind,mine,mini,mink,mint,minx,mire,miss,mist,mite,mitt,moan,moat,mobs,mock,mode,mold,mole,molt,monk,mood,moon,moor,moot,mope,mops,more,morn,moss,most,moth,move,much,muck,mugs,mule,mull,murk,muse,mush,must,mute,mutt,myth,nags,nail,name,nape,naps,navy,near,neat,neck,need,neon,nest,nets,news,newt,next,nibs,nice,nick,nine,node,nods,none,nook,noon,nope,norm,nose,note,noun,nude,nuke,numb,oaks,oars,oath,oats,odds,odes,oils,oily,ones,only,onus,ooze,opts,opus,orbs,ores,ouch,ours,oust,outs,owed,owes,owls,owns,pace,pack,pact,pads,page,paid,pail,pain,pair,pale,palm,pane,pang,pans,pant,pare,park,pars,part,pass,past,pate,path,pats,pave,pawn,paws,pays,peak,peal,pear,peas,peat,peck,peek,peel,peer,pegs,pelt,pens,pent,perk,pert,pest,pets,pews,pick,pier,pies,pigs,pike,pile,pill,pine,ping,pink,pint,pipe,pith,pity,plan,play,plea,plod,plop,plot,plow,ploy,plug,plum,plus,poem,poet,poke,pole,poll,polo,pomp,pond,pony,pool,poor,pope,pops,pore,pork,port,pose,posh,post,posy,pots,pour,pout,pray,prep,prey,prim,prod,prom,prop,pros,prow,puck,pull,pulp,pump,punk,puns,punt,puny,pups,pure,purr,push,puts,quit,quiz,race,rack,racy,raft,rage,rags,raid,rail,rain,rake,ramp,rams,rang,rank,rant,rape,raps,rapt,rare,rash,rate,rats,rave,rays,raze,read,real,ream,reap,rear,reed,reef,reek,reel,rein,rend,rent,rest,rice,rich,ride,rife,rift,rigs,rile,rims,rind,ring,rink,riot,ripe,rise,risk,rite,road,roam,roar,robe,robs,rock,rode,rods,roll,romp,roof,rook,room,root,rope,rose,rosy,rote,rots,rout,rove,rows,rubs,ruby,rude,rugs,ruin,rule,rums,rune,rung,runs,runt,ruse,rush,rust,ruts,sack,safe,saga,sage,said,sail,sake,sale,salt,same,sand,sane,sang,sank,saps,sash,save,saws,says,scam,scan,scar,seal,seam,sear,seas,seat,sect,seed,seek,seem,seen,seep,seer,sees,self,sell,send,sent,sets,sewn,sham,shed,shim,shin,ship,shod,shoe,shoo,shop,shot,show,shut,side,sift,silk,sill,silo,silt,sine,sing,sink,sips,sire,site,sits,size,skew,skid,skim,skin,skip,skit,slab,slam,slap,slat,sled,slew,slid,slim,slip,slit,slob,slog,slop,slot,slow,slug,slum,slut,snug,soak,soap,soar,soda,sofa,soft,soil,sold,sole,solo,some,song,sons,soon,soot,sore,sort,soul,soup,sour,sown,sows,spam,span,spar,spat,sped,spin,spit,spot,spud,spun,spur,stab,stag,star,stay,stem,step,stew,stir,stop,stow,stub,stud,stun,subs,such,suck,suds,sued,sues,suet,suit,sulk,sumo,sump,sung,sunk,suns,sure,surf,swab,swam,swan,swap,swat,sway,swig,swim,swum,tabs,tack,tact,tags,tail,take,talc,tale,talk,tall,tame,tamp,tang,tank,tans,tape,taps,tare,tarp,tars,tart,task,taut,teal,team,tear,teas,teem,teen,tell,temp,tend,tens,tent,term,tern,test,text,than,that,thaw,thee,them,then,they,thin,this,thud,thug,thus,tick,tide,tidy,tied,tier,ties,tile,till,tilt,time,tine,tins,tint,tiny,tips,tire,toad,toed,toes,toil,told,toll,tomb,tome,tone,tong,tons,took,tool,toot,tops,tore,torn,toss,tote,tots,tour,tout,town,tows,toys,tram,trap,tray,tree,trek,trim,trio,trip,trod,trot,true,tsar,tuba,tube,tubs,tuck,tugs,tuna,tune,turf,turn,tusk,twig,twin,twit,type,typo,vain,vale,vane,vans,vase,vast,veal,veer,veil,vein,vend,vent,verb,very,vest,vial,vibe,vice,vile,vine,visa,vise,volt,vote,vows,wade,waft,wage,wags,waif,wail,wait,wake,walk,wall,wand,wane,want,ward,ware,warm,warn,warp,wars,wart,wary,wash,wasp,watt,wave,wavy,waxy,ways,weak,wear,webs,weds,weed,week,weep,weld,well,welt,went,wept,were,west,wets,what,when,whet,whey,whim,whip,whir,whom,wick,wide,wife,wigs,wild,will,wilt,wily,wimp,wind,wine,wing,wink,wins,wipe,wire,wiry,wise,wish,wisp,with,wits,woke,wolf,wood,wool,word,wore,work,worm,worn,wove,wrap,wren,writ,yaks,yams,yank,yaps,yard,yarn,yawn,yeah,year,yell,yelp,yews,yoke,yolk,your,yowl,zeal,zero,zest,zone,zoom".split(",");
+var WSET = {};
+for (var _i = 0; _i < WORDS.length; _i++) WSET[WORDS[_i]] = 1;
+// 邻接表：adjs[w][i] = 位置 i 可替换成且仍是合法词的字母集合
+var adjs = {};
+for (var w = 0; w < WORDS.length; w++) {
+  var word = WORDS[w], m = {};
+  for (var p = 0; p < 4; p++) {
+    var letters = "";
+    for (var c = 97; c <= 122; c++) {
+      var ch = String.fromCharCode(c);
+      if (ch === word.charAt(p)) continue;
+      if (WSET[word.slice(0, p) + ch + word.slice(p + 1)]) letters += ch;
+    }
+    if (letters) m[p] = letters;
+  }
+  adjs[word] = m;
+}
+function neighbors(word) {
+  var out = [], m = adjs[word];
+  for (var p = 0; p < 4; p++) {
+    var s = m[p]; if (!s) continue;
+    for (var k = 0; k < s.length; k++) out.push(word.slice(0, p) + s.charAt(k) + word.slice(p + 1));
+  }
+  return out;
+}
+// BFS 最短路径长度（无路径返回 -1）
+function bfsDist(src, dst) {
+  if (src === dst) return 0;
+  var dist = {}; dist[src] = 0;
+  var q = [src];
+  for (var h = 0; h < q.length; h++) {
+    var cur = q[h], d = dist[cur] + 1;
+    var ns = neighbors(cur);
+    for (var i = 0; i < ns.length; i++) {
+      if (dist[ns[i]] !== undefined) continue;
+      if (ns[i] === dst) return d;
+      dist[ns[i]] = d; q.push(ns[i]);
+    }
+  }
+  return -1;
+}
+// 从 src 出发到达 dist 恰为 d 的所有词
+function wordsAt(src, d) {
+  var dist = {}; dist[src] = 0; var q = [src], out = [];
+  for (var h = 0; h < q.length; h++) {
+    var cur = q[h], nd = dist[cur] + 1;
+    if (nd > d) continue;
+    var ns = neighbors(cur);
+    for (var i = 0; i < ns.length; i++) {
+      if (dist[ns[i]] !== undefined) continue;
+      dist[ns[i]] = nd;
+      if (nd === d) out.push(ns[i]);
+      q.push(ns[i]);
+    }
+  }
+  return out;
+}
+
+/* ================= 随机数 ================= */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function makePuzzle(rng, minSteps, plus) {
+  for (var tries = 0; tries < 300; tries++) {
+    var src = WORDS[Math.floor(rng() * WORDS.length)];
+    var d = minSteps;
+    if (plus) d = minSteps + Math.floor(rng() * 4);
+    var cands = wordsAt(src, d);
+    if (!cands.length) continue;
+    var dst = cands[Math.floor(rng() * cands.length)];
+    if (bfsDist(src, dst) !== d) continue;
+    return { start: src, end: dst, min: d };
+  }
+  return { start: "cold", end: "warm", min: 3 };
+}
+
+/* ================= 存档 ================= */
+function load(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }
+function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+var stats = load("wl_stats", { streak: 0, best: 0, solved: 0 });
+var muted = load("wl_muted", false);
+
+/* ================= 音效 ================= */
+var actx = null;
+function beep(freq, dur, type, gainv) {
+  if (muted) return;
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === "suspended") actx.resume();
+    var o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || "sine"; o.frequency.value = freq;
+    g.gain.setValueAtTime(gainv || 0.1, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+
+/* ================= SDK 事件 ================= */
+function sdkStart() { try { if (window.__portal === "crazygames" && window.CrazyGames && window.CrazyGames.SDK) window.CrazyGames.SDK.game.gameplayStart(); } catch (e) {} }
+function sdkStop() { try { if (window.__portal === "crazygames" && window.CrazyGames && window.CrazyGames.SDK) window.CrazyGames.SDK.game.gameplayStop(); } catch (e) {} }
+
+/* ================= 界面状态 ================= */
+var G = null; // 当前对局
+function show(id) {
+  var ss = document.querySelectorAll(".screen");
+  for (var i = 0; i < ss.length; i++) ss[i].classList.remove("on");
+  document.getElementById(id).classList.add("on");
+}
+function fmtStats() {
+  document.getElementById("mStreak").textContent = stats.streak;
+  document.getElementById("mBest").textContent = stats.best;
+  document.getElementById("mSolved").textContent = stats.solved;
+}
+function todayKey() {
+  var d = new Date();
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+function startSession(mode, diff) {
+  var daily = mode === "daily";
+  var seedBase = daily ? todayKey() : (Date.now() & 0x7fffffff);
+  var puzzles = [];
+  for (var i = 0; i < 3; i++) {
+    var d = daily ? [3, 4, 5][i] : diff;
+    puzzles.push(makePuzzle(mulberry32(seedBase + i * 7919 + (daily ? 0 : Math.floor(Math.random() * 1e6))), d, d >= 5));
+  }
+  G = { mode: mode, diff: diff, puzzles: puzzles, idx: 0, path: [], solvedAll: 0, perfects: 0 };
+  document.getElementById("gMode").textContent = daily ? "Daily Challenge" : "Endless";
+  sdkStart();
+  loadPuzzle();
+  show("scGame");
+}
+function loadPuzzle() {
+  var pz = G.puzzles[G.idx];
+  G.path = [pz.start];
+  G.hintUsed = false;
+  document.getElementById("gTitle").textContent = G.mode === "daily" ? "PUZZLE " + (G.idx + 1) + "/3" : "ENDLESS";
+  document.getElementById("hintbox").style.display = "none";
+  document.getElementById("msg").textContent = "Tap a letter of your current word to change it";
+  document.getElementById("ovl").classList.remove("on");
+  renderLadder();
+  updSteps();
+}
+function curWord() { return G.path[G.path.length - 1]; }
+function updSteps() {
+  var pz = G.puzzles[G.idx];
+  document.getElementById("gSteps").textContent = "Moves: " + (G.path.length - 1) + " · Par: " + pz.min;
+}
+function renderLadder() {
+  var pz = G.puzzles[G.idx];
+  var el = document.getElementById("ladder");
+  var html = "";
+  for (var i = 0; i < G.path.length; i++) {
+    var w = G.path[i];
+    var cls = "card";
+    if (i === 0) cls += " start";
+    if (i === G.path.length - 1 && w !== pz.end) cls += " cur";
+    if (w === pz.end) cls += " done target";
+    var cells = "";
+    for (var p = 0; p < 4; p++) {
+      if (i === G.path.length - 1 && w !== pz.end) cells += '<span class="pos" data-p="' + p + '">' + w.charAt(p) + "</span>";
+      else cells += "<span>" + w.charAt(p) + "</span>";
+    }
+    html += '<div class="rung"><div class="stepno">' + (i === 0 ? "·" : i) + "</div>" +
+      (i > 0 ? '<div class="arrow">&#8594;</div>' : '<div class="arrow"></div>') +
+      '<div class="' + cls + '">' + cells + "</div></div>";
+  }
+  html += '<div class="rung"><div class="stepno">?</div><div class="arrow">&#8594;</div>' +
+    '<div class="card" style="opacity:.55">' +
+    '<span style="color:#a09272">.</span><span style="color:#a09272">.</span><span style="color:#a09272">.</span><span style="color:#a09272">.</span></div></div>' +
+    '<div class="rung"><div class="stepno">&#9733;</div><div class="arrow">&#8594;</div><div class="card target">' +
+    pz.end.split("").map(function (c) { return "<span>" + c + "</span>"; }).join("") + "</div></div>";
+  el.innerHTML = html;
+  el.scrollTop = el.scrollHeight;
+  var ps = el.querySelectorAll(".pos");
+  for (var k = 0; k < ps.length; k++) {
+    ps[k].addEventListener("click", onPosTap);
+    ps[k].addEventListener("touchstart", function (e) { e.preventDefault(); onPosTap.call(this, e); }, { passive: false });
+  }
+}
+function onPosTap(e) {
+  if (!G) return;
+  var p = parseInt(this.getAttribute("data-p"), 10);
+  var w = curWord();
+  var letters = adjs[w][p] || "";
+  var kbd = document.getElementById("kbd");
+  if (!letters) {
+    kbd.style.display = "none";
+    document.getElementById("msg").textContent = "No letter fits there right now";
+    beep(160, 0.12, "sawtooth", 0.06);
+    return;
+  }
+  var html = "";
+  for (var i = 0; i < letters.length; i++) html += '<button class="kt" data-p="' + p + '" data-l="' + letters.charAt(i) + '">' + letters.charAt(i).toUpperCase() + "</button>";
+  html += '<div class="x">pick a letter for position ' + (p + 1) + " &middot; tap again to close</div>";
+  kbd.innerHTML = html;
+  kbd.style.display = "flex";
+  var bs = kbd.querySelectorAll(".kt");
+  for (var j = 0; j < bs.length; j++) {
+    bs[j].addEventListener("click", onLetterPick);
+    bs[j].addEventListener("touchstart", function (ev) { ev.preventDefault(); onLetterPick.call(this, ev); }, { passive: false });
+  }
+  beep(520, 0.05, "sine", 0.05);
+}
+function onLetterPick() {
+  var p = this.getAttribute("data-p"), l = this.getAttribute("data-l");
+  var w = curWord();
+  var nw = w.slice(0, +p) + l + w.slice(+p + 1);
+  document.getElementById("kbd").style.display = "none";
+  if (!WSET[nw]) { document.getElementById("msg").textContent = "Not a word"; return; }
+  if (G.path.indexOf(nw) !== -1) { document.getElementById("msg").textContent = "Already used"; beep(160, 0.12, "sawtooth", 0.06); return; }
+  G.path.push(nw);
+  document.getElementById("msg").textContent = "";
+  beep(380 + G.path.length * 40, 0.09, "triangle", 0.09);
+  updSteps(); renderLadder();
+  if (nw === G.puzzles[G.idx].end) winPuzzle();
+}
+function winPuzzle() {
+  var pz = G.puzzles[G.idx];
+  var moves = G.path.length - 1;
+  var perfect = moves <= pz.min && !G.hintUsed;
+  G.solvedAll++; stats.solved++;
+  if (perfect) G.perfects++;
+  var title = document.getElementById("pTitle");
+  var big = document.getElementById("pBig");
+  var txt = document.getElementById("pText");
+  if (perfect) { title.textContent = "Ladder Complete!"; big.textContent = "PERFECT ×2"; txt.textContent = moves + " moves — matched the shortest path. Double score!"; }
+  else { title.textContent = "Ladder Complete!"; big.textContent = moves + " moves"; txt.textContent = "Shortest path was " + pz.min + ". Try to match it next time."; }
+  document.getElementById("pNext").textContent = (G.mode === "daily" && G.idx === 2) ? "See Summary" : "Next Puzzle";
+  document.getElementById("ovl").classList.add("on");
+  beep(660, 0.12, "sine", 0.1); setTimeout(function () { beep(880, 0.18, "sine", 0.1); }, 120);
+  if (G.mode === "daily" && G.idx === 2) {
+    stats.streak++; if (stats.streak > stats.best) stats.best = stats.streak;
+  } else if (G.mode === "endless") {
+    stats.streak++; if (stats.streak > stats.best) stats.best = stats.streak;
+  }
+  save("wl_stats", stats);
+  try { if (window.__portal === "crazygames" && window.CrazyGames && window.CrazyGames.SDK) window.CrazyGames.SDK.game.happytime(); } catch (e) {}
+}
+function summary() {
+  var title = document.getElementById("pTitle");
+  var big = document.getElementById("pBig");
+  var txt = document.getElementById("pText");
+  title.textContent = "Daily Complete!";
+  big.textContent = G.solvedAll + "/3";
+  txt.textContent = G.perfects + " perfect · streak " + stats.streak + " (best " + stats.best + ")";
+  document.getElementById("pNext").textContent = "Main Menu";
+  document.getElementById("ovl").classList.add("on");
+}
+function nextStep() {
+  if (G.mode === "daily" && G.idx < 2) { G.idx++; loadPuzzle(); }
+  else if (G.mode === "endless") { G.idx++; G.puzzles[G.idx] = makePuzzle(mulberry32((Date.now() ^ (G.idx * 2654435761)) & 0x7fffffff), G.diff, G.diff >= 5); loadPuzzle(); }
+  else quitToMenu(true);
+}
+function quitToMenu(done) {
+  sdkStop();
+  if (!done && G && G.path.length > 1 && G.mode !== "daily") { stats.streak = 0; save("wl_stats", stats); }
+  G = null;
+  fmtStats(); show("scMenu");
+  document.getElementById("ovl").classList.remove("on");
+  document.getElementById("kbd").style.display = "none";
+}
+function doHint() {
+  if (!G) return;
+  var pz = G.puzzles[G.idx], w = curWord();
+  if (w === pz.end) return;
+  G.hintUsed = true;
+  var d = bfsDist(w, pz.end);
+  var hb = document.getElementById("hintbox");
+  var ns = neighbors(w);
+  var good = null;
+  for (var i = 0; i < ns.length; i++) {
+    if (bfsDist(ns[i], pz.end) === d - 1) { good = ns[i]; break; }
+  }
+  var masked = "????";
+  if (good) {
+    // 遮住一个仍需修改的字母位
+    var diffs = [];
+    for (var p = 0; p < 4; p++) if (good.charAt(p) !== pz.end.charAt(p)) diffs.push(p);
+    var hide = diffs.length ? diffs[Math.floor(Math.random() * diffs.length)] : 0;
+    masked = good.split("").map(function (c, idx) { return idx === hide ? "•" : c; }).join("");
+  }
+  hb.textContent = "Shortest path from here: " + d + (d === 1 ? " step" : " steps") + " · one good next word: " + masked;
+  hb.style.display = "block";
+  beep(440, 0.1, "sine", 0.07);
+}
+function doUndo() {
+  if (!G || G.path.length <= 1) return;
+  G.path.pop();
+  document.getElementById("msg").textContent = "";
+  updSteps(); renderLadder();
+  beep(300, 0.08, "square", 0.05);
+}
+function toggleMute() {
+  muted = !muted; save("wl_muted", muted);
+  document.getElementById("bMute").textContent = muted ? "Sound: Off" : "Sound: On";
+}
+
+/* ================= 输入绑定 ================= */
+function bindTap(id, fn) {
+  var el = document.getElementById(id);
+  el.addEventListener("click", fn);
+  el.addEventListener("touchstart", function (e) { e.preventDefault(); fn.call(el, e); }, { passive: false });
+}
+bindTap("bDaily", function () { startSession("daily", 0); });
+bindTap("bEndless", function () { startSession("endless", 4); });
+var diffs = document.querySelectorAll("[data-diff]");
+for (var di = 0; di < diffs.length; di++) (function (b) {
+  b.addEventListener("click", function () { startSession("endless", parseInt(b.getAttribute("data-diff"), 10)); });
+  b.addEventListener("touchstart", function (e) { e.preventDefault(); startSession("endless", parseInt(b.getAttribute("data-diff"), 10)); }, { passive: false });
+})(diffs[di]);
+bindTap("bQuit", function () { quitToMenu(false); });
+bindTap("bMute", toggleMute);
+bindTap("bUndo", doUndo);
+bindTap("bHint", doHint);
+bindTap("pNext", function () {
+  if (this.textContent === "Main Menu") quitToMenu(true);
+  else if (this.textContent === "See Summary") summary();
+  else nextStep();
+});
+bindTap("pMenu", function () { quitToMenu(true); });
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape" && G) { quitToMenu(false); return; }
+  if (!G || document.getElementById("ovl").classList.contains("on")) return;
+  if ((e.ctrlKey || e.metaKey) && e.key === "z") { doUndo(); return; }
+  if (e.key === "Backspace") { doUndo(); e.preventDefault(); return; }
+  if (e.key === "h" || e.key === "H") { doHint(); return; }
+  // 桌面键盘直接输入整词
+  if (/^[a-zA-Z]$/.test(e.key)) {
+    var ti = document.getElementById("typeIn");
+    ti.focus();
+  }
+});
+document.getElementById("typeIn").addEventListener("input", function () {
+  var v = this.value.toLowerCase();
+  this.value = "";
+  if (!G || v.length !== 4 || !WSET[v]) return;
+  var w = curWord(), diffPos = -1, n = 0;
+  for (var p = 0; p < 4; p++) if (v.charAt(p) !== w.charAt(p)) { n++; diffPos = p; }
+  if (n !== 1) { document.getElementById("msg").textContent = "Change exactly one letter"; return; }
+  if (G.path.indexOf(v) !== -1) { document.getElementById("msg").textContent = "Already used"; return; }
+  G.path.push(v);
+  beep(380 + G.path.length * 40, 0.09, "triangle", 0.09);
+  updSteps(); renderLadder();
+  if (v === G.puzzles[G.idx].end) winPuzzle();
+});
+// 阻止页面滚动橡皮筋（键盘弹层除外）
+document.body.addEventListener("touchmove", function (e) {
+  if (!e.target.closest || !e.target.closest("#ladder")) e.preventDefault();
+}, { passive: false });
+
+/* ================= 启动 ================= */
+document.getElementById("bMute").textContent = muted ? "Sound: Off" : "Sound: On";
+var dk = todayKey();
+if (load("wl_daily", 0) !== dk) { save("wl_daily", dk); }
+fmtStats();
+// 调试/测试钩子（不影响游戏逻辑）
+window.__wl = {
+  WORDS: WORDS, WSET: WSET, adjs: adjs,
+  neighbors: neighbors, bfsDist: bfsDist, wordsAt: wordsAt, makePuzzle: makePuzzle,
+  mulberry32: mulberry32, get G() { return G; }, get stats() { return stats; }
+};
+</script>
+</body>
+</html>
